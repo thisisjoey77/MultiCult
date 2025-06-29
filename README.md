@@ -1,20 +1,12 @@
 # MultiCult
 
-A Flutter application designed to explore and celebrate multiculturalism through interactive quizzes and personalized settings.
+![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 
-## About
 
-MultiCult is a cross-platform mobile application built with Flutter that aims to promote cultural awareness and understanding. The app features interactive quizzes about different cultures and allows users to customize their experience through comprehensive settings.
+Application for Jeju Multicultural Population's Better Medical Access
 
-## Features
-
-- **Interactive Quiz System**: Engage with questions about various cultures and traditions
-- **Personalized Settings**: Customize your profile with editable information
-  - Editable email and name fields
-  - Scrollable birth year picker for clean user experience
-  - Multi-language support with expandable language selection
-- **Modern UI Design**: Dark theme with elegant card-based layout
-- **Cross-Platform**: Works on iOS, Android, Web, macOS, Linux, and Windows
 
 ## Technical Stack
 
@@ -24,13 +16,6 @@ MultiCult is a cross-platform mobile application built with Flutter that aims to
 - **State Management**: StatefulWidget with setState
 - **Platform Support**: iOS, Android, Web, macOS, Linux, Windows
 
-## Screenshots
-
-The app features a clean, modern interface with:
-- Home screen with navigation
-- Interactive quiz interface
-- Comprehensive settings page with editable fields
-- Multi-language support
 
 ## Getting Started
 
@@ -100,10 +85,3 @@ lib/
 ## Authors
 
 - **Joy Kim, Sang Ahn, Ethan Cho, Soomin Kim, Alisa Kim, Zijun Huang**
-
-
-If you have any questions or need support, please open an issue on GitHub.
-
----
-
-Made using Flutter
