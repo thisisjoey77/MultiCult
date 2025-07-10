@@ -624,6 +624,17 @@ class _TypingWidgetState extends State<TypingWidget> {
   final TextEditingController _controller = TextEditingController();
   bool? isCorrect;
   bool showOverride = false;
+  bool _hasText = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() {
+      setState(() {
+        _hasText = _controller.text.trim().isNotEmpty;
+      });
+    });
+  }
 
   @override
   void dispose() {
@@ -711,7 +722,7 @@ class _TypingWidgetState extends State<TypingWidget> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _controller.text.isNotEmpty ? _checkAnswer : null,
+                      onPressed: _hasText ? _checkAnswer : null,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.all(16),
                         shape: RoundedRectangleBorder(
@@ -742,8 +753,11 @@ class _TypingWidgetState extends State<TypingWidget> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Incorrect answer. Was your answer actually correct?',
-                            style: TextStyle(color: Colors.orange[700]),
+                            'Incorrect answer. Was this actually correct?',
+                            style: TextStyle(
+                              color: Colors.orange[700],
+                              fontSize: 14,
+                            ),
                           ),
                         ),
                       ],
@@ -758,14 +772,20 @@ class _TypingWidgetState extends State<TypingWidget> {
                                 showOverride = false;
                               });
                             },
-                            child: const Text('No, it was wrong'),
+                            child: const Text(
+                              'No, wrong',
+                              style: TextStyle(fontSize: 14),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: ElevatedButton(
                             onPressed: _overrideAnswer,
-                            child: const Text('Yes, mark as correct'),
+                            child: const Text(
+                              'Yes, correct',
+                              style: TextStyle(fontSize: 14),
+                            ),
                           ),
                         ),
                       ],

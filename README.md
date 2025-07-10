@@ -3,6 +3,7 @@
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)
 
 
 Application for Jeju Multicultural Population's Better Medical Access
@@ -39,7 +40,16 @@ cd MultiCult
 flutter pub get
 ```
 
-3. Run the app:
+3. Set up OpenAI API integration:
+```bash
+# Copy the environment template
+cp .env.example .env
+
+# Edit .env and add your OpenAI API key
+# OPENAI_API_KEY=your_actual_api_key_here
+```
+
+4. Run the app:
 ```bash
 flutter run
 ```
@@ -59,12 +69,26 @@ flutter run
 lib/
 ├── main.dart          # Entry point and navigation
 ├── home.dart          # Home screen implementation
-├── quiz.dart          # Quiz functionality
+├── quiz.dart          # Quiz functionality with typing and MCQ
+├── chat.dart          # AI-powered chat with OpenAI integration
 ├── settings.dart      # Settings page with editable fields
-└── globals.dart       # Global variables and data
+├── globals.dart       # Global variables and data
+└── openai_service.dart # OpenAI API integration service
 ```
 
 ## Key Features Implementation
+
+### AI-Powered Chat
+- **OpenAI Integration**: Real-time conversations with GPT-3.5-turbo
+- **Language Learning Focus**: Specialized prompts for multicultural language learning
+- **Loading States**: Visual feedback during API calls
+- **Error Handling**: Graceful fallbacks for network issues
+
+### Interactive Quiz System
+- **Multiple Question Types**: MCQ, typing, and matching questions
+- **Answer Validation**: Smart checking with override options
+- **Responsive UI**: Fixed text input and overflow issues
+- **Progress Tracking**: Visual feedback and scoring
 
 ### Editable Settings
 - **Text Fields**: Email and name editing through dialog boxes

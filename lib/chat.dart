@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'globals.dart' as globals;
+import 'openai_service.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -11,15 +12,19 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  bool _isLoading = false;
 
-  void _sendMessage() {
+  void _sendMessage() async {
     if (_textController.text.trim().isEmpty) return;
+    
+    final userMessage = _textController.text.trim();
     
     setState(() {
       globals.chatMessages.add(globals.ChatMessage(
-        text: _textController.text.trim(),
+        text: userMessage,
         isUser: true,
       ));
+      _isLoading = true;
     });
     
     _textController.clear();
@@ -33,13 +38,16 @@ class _ChatPageState extends State<ChatPage> {
       );
     });
     
-    // Simulate AI response after a delay
-    Future.delayed(const Duration(milliseconds: 1000), () {
+    try {
+      // Send message to OpenAI API
+      final aiResponse = await OpenAIService.sendMessage(userMessage);
+      
       setState(() {
         globals.chatMessages.add(globals.ChatMessage(
-          text: 'Great! I can help you practice. Let me know what language you\'d like to practice or ask me any questions.',
+          text: aiResponse,
           isUser: false,
         ));
+        _isLoading = false;
       });
       
       // Auto-scroll to bottom after AI response
@@ -50,7 +58,15 @@ class _ChatPageState extends State<ChatPage> {
           curve: Curves.easeOut,
         );
       });
-    });
+    } catch (e) {
+      setState(() {
+        globals.chatMessages.add(globals.ChatMessage(
+          text: 'Sorry, I encountered an error. Please try again.',
+          isUser: false,
+        ));
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -132,8 +148,76 @@ class _ChatPageState extends State<ChatPage> {
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.all(16),
-              itemCount: globals.chatMessages.length,
+              itemCount: globals.chatMessages.length + (_isLoading ? 1 : 0),
               itemBuilder: (context, index) {
+                // Show loading indicator as the last item
+                if (index == globals.chatMessages.length && _isLoading) {
+                  return Container(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Colors.deepPurple, Colors.deepPurple.shade300],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(
+                            Icons.psychology,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Colors.grey[100]!, Colors.white],
+                            ),
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withValues(alpha: 0.2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.deepPurple),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Thinking...',
+                                style: TextStyle(
+                                  color: Colors.black87,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                
                 final msg = globals.chatMessages[index];
                 return Container(
                   margin: const EdgeInsets.symmetric(vertical: 8),

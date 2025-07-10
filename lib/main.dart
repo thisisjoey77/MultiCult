@@ -5,11 +5,13 @@ import 'quiz.dart';
 import 'settings.dart';
 import 'chat.dart';
 import 'globals.dart' as globals;
+import 'openai_service.dart';
 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await globals.initGlobals();
+  await OpenAIService.initialize();
   runApp(const MyApp());
 }
 

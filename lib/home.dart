@@ -34,7 +34,7 @@ class _HomePageState extends State<HomePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Welcome to Multicult! 🌍',
+                    'Welcome to Multicult!',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
