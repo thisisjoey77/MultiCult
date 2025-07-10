@@ -666,19 +666,20 @@ class _TypingWidgetState extends State<TypingWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Card(
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Text(
-              widget.question.question,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            elevation: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                widget.question.question,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              ),
             ),
           ),
-        ),
         const SizedBox(height: 30),
         Card(
           elevation: 1,
@@ -753,11 +754,13 @@ class _TypingWidgetState extends State<TypingWidget> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Incorrect answer. Was this actually correct?',
+                            'Incorrect. Was this actually correct?',
                             style: TextStyle(
                               color: Colors.orange[700],
                               fontSize: 14,
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -773,7 +776,7 @@ class _TypingWidgetState extends State<TypingWidget> {
                               });
                             },
                             child: const Text(
-                              'No, wrong',
+                              'No',
                               style: TextStyle(fontSize: 14),
                             ),
                           ),
@@ -783,7 +786,7 @@ class _TypingWidgetState extends State<TypingWidget> {
                           child: ElevatedButton(
                             onPressed: _overrideAnswer,
                             child: const Text(
-                              'Yes, correct',
+                              'Yes',
                               style: TextStyle(fontSize: 14),
                             ),
                           ),
@@ -806,11 +809,13 @@ class _TypingWidgetState extends State<TypingWidget> {
                     children: [
                       Icon(Icons.info, color: Colors.blue[700]),
                       const SizedBox(width: 8),
-                      Text(
-                        'Correct answers:',
-                        style: TextStyle(
-                          color: Colors.blue[700],
-                          fontWeight: FontWeight.w600,
+                      Expanded(
+                        child: Text(
+                          'Correct answers:',
+                          style: TextStyle(
+                            color: Colors.blue[700],
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
@@ -822,11 +827,15 @@ class _TypingWidgetState extends State<TypingWidget> {
                       color: Colors.blue[700],
                       fontWeight: FontWeight.w500,
                     ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     widget.question.explanation,
                     style: TextStyle(color: Colors.blue[700]),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -851,6 +860,7 @@ class _TypingWidgetState extends State<TypingWidget> {
           ),
         ],
       ],
+      ),
     );
   }
 }
