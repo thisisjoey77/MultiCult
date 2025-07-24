@@ -15,6 +15,9 @@ migrate_working_dir/
 # Environment variables
 .env
 
+# Backend reference files (not for deployment)
+BACKEND.py
+
 # IntelliJ related
 *.iml
 *.ipr

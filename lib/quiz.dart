@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
 import 'globals.dart' as globals;
+import 'quiz_generator.dart';
+import 'api_service.dart';
 
 class QuizPage extends StatefulWidget {
   const QuizPage({super.key});
@@ -11,12 +12,13 @@ class QuizPage extends StatefulWidget {
 
 class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
   globals.QuizType? selectedQuizType;
+  String? selectedCategory = 'ALL'; // Default to all categories
   bool quizStarted = false;
   int currentQuestionIndex = 0;
   int score = 0;
   bool showAnswer = false;
   bool questionAnswered = false;
-  
+
   late AnimationController _progressAnimationController;
   late AnimationController _feedbackAnimationController;
   late Animation<double> _progressAnimation;
@@ -36,7 +38,10 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
       vsync: this,
     );
     _progressAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _progressAnimationController, curve: Curves.easeInOut),
+      CurvedAnimation(
+        parent: _progressAnimationController,
+        curve: Curves.easeInOut,
+      ),
     );
   }
 
@@ -47,7 +52,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  void startQuiz(globals.QuizType type) {
+  void startQuiz(globals.QuizType type) async {
     setState(() {
       selectedQuizType = type;
       quizStarted = true;
@@ -55,47 +60,36 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
       score = 0;
       showAnswer = false;
       questionAnswered = false;
-      currentQuiz = _generateQuiz(type);
+      currentQuiz = []; // Start with empty quiz, will be populated
     });
-    _progressAnimationController.forward();
-  }
 
-  List<dynamic> _generateQuiz(globals.QuizType type) {
-    List<dynamic> quiz = [];
-    Random random = Random();
-    
-    switch (type) {
-      case globals.QuizType.mcq:
-        quiz = List.from(globals.sampleMCQQuestions)..shuffle(random);
-        break;
-      case globals.QuizType.typing:
-        quiz = List.from(globals.sampleTypingQuestions)..shuffle(random);
-        break;
-      case globals.QuizType.matching:
-        quiz = List.from(globals.sampleMatchingQuestions)..shuffle(random);
-        break;
-      case globals.QuizType.mixed:
-        List<dynamic> allQuestions = [
-          ...globals.sampleMCQQuestions,
-          ...globals.sampleTypingQuestions,
-          ...globals.sampleMatchingQuestions,
-        ];
-        allQuestions.shuffle(random);
-        quiz = allQuestions;
-        break;
-    }
-    
-    // If we have fewer questions than needed, cycle through them with shuffling
-    if (quiz.length < totalQuestions) {
-      List<dynamic> extendedQuiz = [];
-      while (extendedQuiz.length < totalQuestions) {
-        List<dynamic> shuffledCopy = List.from(quiz)..shuffle(random);
-        extendedQuiz.addAll(shuffledCopy);
+    // Show loading state
+    _progressAnimationController.forward();
+
+    try {
+      // Generate quiz using backend API with selected category
+      List<dynamic> generatedQuiz = await QuizGenerator.generateQuiz(
+        type,
+        questionCount: totalQuestions,
+        selectedCategory: selectedCategory,
+      );
+
+      setState(() {
+        currentQuiz = generatedQuiz;
+      });
+
+      if (generatedQuiz.isEmpty) {
+        _showErrorDialog(
+          'No quiz questions available. Please try again later.',
+        );
+        return;
       }
-      return extendedQuiz.take(totalQuestions).toList();
+    } catch (e) {
+      print('Error generating quiz: $e');
+      _showErrorDialog(
+        'Failed to load quiz questions. Please check your internet connection and try again.',
+      );
     }
-    
-    return quiz.take(totalQuestions).toList();
   }
 
   void nextQuestion() {
@@ -113,6 +107,30 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
     });
   }
 
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                quizStarted = false;
+                selectedQuizType = null;
+                selectedCategory = 'ALL'; // Reset category selection
+              });
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showResultDialog() {
     showDialog(
       context: context,
@@ -123,7 +141,9 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              score >= totalQuestions * 0.7 ? Icons.celebration : Icons.thumb_up,
+              score >= totalQuestions * 0.7
+                  ? Icons.celebration
+                  : Icons.thumb_up,
               size: 64,
               color: score >= totalQuestions * 0.7 ? Colors.amber : Colors.blue,
             ),
@@ -145,6 +165,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
               setState(() {
                 quizStarted = false;
                 selectedQuizType = null;
+                selectedCategory = 'ALL'; // Reset category selection
               });
             },
             child: const Text('Try Again'),
@@ -155,6 +176,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
               setState(() {
                 quizStarted = false;
                 selectedQuizType = null;
+                selectedCategory = 'ALL'; // Reset category selection
               });
             },
             child: const Text('Done'),
@@ -169,7 +191,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
     if (!quizStarted) {
       return _buildQuizTypeSelection();
     }
-    
+
     return Column(
       children: [
         _buildProgressBar(),
@@ -198,7 +220,45 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                 color: Colors.deepPurple,
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 20),
+
+            // Category Selection Section
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Select Category',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildCategorySelector(),
+                    const SizedBox(height: 8),
+                    Text(
+                      CategoryHelper.getCategoryDescription(
+                        selectedCategory ?? 'ALL',
+                      ),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 30),
             _buildQuizTypeCard(
               'Multiple Choice',
               'Answer questions with multiple options',
@@ -236,8 +296,53 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildQuizTypeCard(String title, String description, IconData icon, 
-      Color color, VoidCallback onTap) {
+  Widget _buildCategorySelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButton<String>(
+        value: selectedCategory,
+        isExpanded: true,
+        underline: const SizedBox(),
+        icon: const Icon(Icons.arrow_drop_down),
+        items: CategoryHelper.getAllCategoryCodes().map((String categoryCode) {
+          return DropdownMenuItem<String>(
+            value: categoryCode,
+            child: Row(
+              children: [
+                Icon(
+                  CategoryHelper.getCategoryIcon(categoryCode),
+                  size: 20,
+                  color: Colors.deepPurple,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  CategoryHelper.getCategoryName(categoryCode),
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+        onChanged: (String? newValue) {
+          setState(() {
+            selectedCategory = newValue;
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildQuizTypeCard(
+    String title,
+    String description,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -272,10 +377,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                     const SizedBox(height: 4),
                     Text(
                       description,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                   ],
                 ),
@@ -298,11 +400,17 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
             children: [
               Text(
                 'Question ${currentQuestionIndex + 1} of $totalQuestions',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               Text(
                 'Score: $score',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -311,7 +419,10 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
             animation: _progressAnimation,
             builder: (context, child) {
               return LinearProgressIndicator(
-                value: _progressAnimation.value * (currentQuestionIndex + 1) / totalQuestions,
+                value:
+                    _progressAnimation.value *
+                    (currentQuestionIndex + 1) /
+                    totalQuestions,
                 backgroundColor: Colors.grey[300],
                 valueColor: AlwaysStoppedAnimation<Color>(
                   _progressAnimation.value > 0.7 ? Colors.green : Colors.blue,
@@ -326,12 +437,35 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
   }
 
   Widget _buildCurrentQuestion() {
+    // Show loading state if quiz is empty (still generating)
+    if (currentQuiz.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Generating quiz questions...',
+              style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Please wait while we fetch medical vocabulary from the database.',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
     if (currentQuestionIndex >= currentQuiz.length) {
       return const Center(child: Text('Quiz completed!'));
     }
 
     dynamic question = currentQuiz[currentQuestionIndex];
-    
+
     if (question is globals.MCQQuestion) {
       return _buildMCQQuestion(question);
     } else if (question is globals.TypingQuestion) {
@@ -339,13 +473,15 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
     } else if (question is globals.MatchingQuestion) {
       return _buildMatchingQuestion(question);
     }
-    
+
     return const Center(child: Text('Invalid question type'));
   }
 
   Widget _buildMCQQuestion(globals.MCQQuestion question) {
     return MCQWidget(
-      key: ValueKey(currentQuestionIndex), // This ensures the widget resets for each question
+      key: ValueKey(
+        currentQuestionIndex,
+      ), // This ensures the widget resets for each question
       question: question,
       onAnswerSelected: (isCorrect, selectedIndex) {
         setState(() {
@@ -364,7 +500,9 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
 
   Widget _buildTypingQuestion(globals.TypingQuestion question) {
     return TypingWidget(
-      key: ValueKey(currentQuestionIndex), // This ensures the widget resets for each question
+      key: ValueKey(
+        currentQuestionIndex,
+      ), // This ensures the widget resets for each question
       question: question,
       onAnswerSubmitted: (isCorrect) {
         setState(() {
@@ -383,7 +521,9 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
 
   Widget _buildMatchingQuestion(globals.MatchingQuestion question) {
     return MatchingWidget(
-      key: ValueKey(currentQuestionIndex), // This ensures the widget resets for each question
+      key: ValueKey(
+        currentQuestionIndex,
+      ), // This ensures the widget resets for each question
       question: question,
       onCompleted: (correctMatches) {
         setState(() {
@@ -471,7 +611,8 @@ class _MCQWidgetState extends State<MCQWidget> with TickerProviderStateMixin {
                   backgroundColor = Colors.green[100];
                   textColor = Colors.green[800];
                   icon = Icons.check_circle;
-                } else if (index == selectedIndex && index != widget.question.correctIndex) {
+                } else if (index == selectedIndex &&
+                    index != widget.question.correctIndex) {
                   backgroundColor = Colors.red[100];
                   textColor = Colors.red[800];
                   icon = Icons.cancel;
@@ -490,24 +631,29 @@ class _MCQWidgetState extends State<MCQWidget> with TickerProviderStateMixin {
                         color: backgroundColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                          side: selectedIndex == index 
-                            ? BorderSide(color: Theme.of(context).primaryColor, width: 2)
-                            : BorderSide.none,
+                          side: selectedIndex == index
+                              ? BorderSide(
+                                  color: Theme.of(context).primaryColor,
+                                  width: 2,
+                                )
+                              : BorderSide.none,
                         ),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(12),
-                          onTap: widget.showAnswer ? null : () {
-                            setState(() {
-                              selectedIndex = index;
-                            });
-                            _animationController.forward().then((_) {
-                              _animationController.reverse();
-                            });
-                            widget.onAnswerSelected(
-                              index == widget.question.correctIndex,
-                              index,
-                            );
-                          },
+                          onTap: widget.showAnswer
+                              ? null
+                              : () {
+                                  setState(() {
+                                    selectedIndex = index;
+                                  });
+                                  _animationController.forward().then((_) {
+                                    _animationController.reverse();
+                                  });
+                                  widget.onAnswerSelected(
+                                    index == widget.question.correctIndex,
+                                    index,
+                                  );
+                                },
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Row(
@@ -517,17 +663,19 @@ class _MCQWidgetState extends State<MCQWidget> with TickerProviderStateMixin {
                                   height: 30,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: selectedIndex == index 
-                                      ? Theme.of(context).primaryColor 
-                                      : Colors.grey[300],
+                                    color: selectedIndex == index
+                                        ? Theme.of(context).primaryColor
+                                        : Colors.grey[300],
                                   ),
                                   child: Center(
                                     child: Text(
-                                      String.fromCharCode(65 + index), // A, B, C, D
+                                      String.fromCharCode(
+                                        65 + index,
+                                      ), // A, B, C, D
                                       style: TextStyle(
-                                        color: selectedIndex == index 
-                                          ? Colors.white 
-                                          : Colors.grey[600],
+                                        color: selectedIndex == index
+                                            ? Colors.white
+                                            : Colors.grey[600],
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -540,9 +688,9 @@ class _MCQWidgetState extends State<MCQWidget> with TickerProviderStateMixin {
                                     style: TextStyle(
                                       fontSize: 16,
                                       color: textColor ?? Colors.black87,
-                                      fontWeight: selectedIndex == index 
-                                        ? FontWeight.w600 
-                                        : FontWeight.normal,
+                                      fontWeight: selectedIndex == index
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
                                     ),
                                   ),
                                 ),
@@ -644,16 +792,17 @@ class _TypingWidgetState extends State<TypingWidget> {
 
   void _checkAnswer() {
     String userAnswer = _controller.text.trim().toLowerCase();
-    bool correct = widget.question.acceptedAnswers
-        .any((answer) => answer.toLowerCase() == userAnswer);
-    
+    bool correct = widget.question.acceptedAnswers.any(
+      (answer) => answer.toLowerCase() == userAnswer,
+    );
+
     setState(() {
       isCorrect = correct;
       if (!correct) {
         showOverride = true;
       }
     });
-    
+
     widget.onAnswerSubmitted(correct);
   }
 
@@ -676,190 +825,198 @@ class _TypingWidgetState extends State<TypingWidget> {
               padding: const EdgeInsets.all(20),
               child: Text(
                 widget.question.question,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-        const SizedBox(height: 30),
-        Card(
-          elevation: 1,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Your Answer:',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _controller,
-                  enabled: !widget.showAnswer,
-                  decoration: InputDecoration(
-                    hintText: 'Type your answer here...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: Theme.of(context).primaryColor,
-                        width: 2,
-                      ),
-                    ),
-                    suffixIcon: isCorrect != null
-                        ? Icon(
-                            isCorrect! ? Icons.check_circle : Icons.cancel,
-                            color: isCorrect! ? Colors.green : Colors.red,
-                          )
-                        : null,
-                  ),
-                  style: const TextStyle(fontSize: 16),
-                  onSubmitted: widget.showAnswer ? null : (_) => _checkAnswer(),
-                ),
-                const SizedBox(height: 16),
-                if (!widget.showAnswer)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _hasText ? _checkAnswer : null,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.all(16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Submit Answer',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        if (widget.showAnswer) ...[
-          if (isCorrect == false && showOverride) ...[
-            Card(
-              color: Colors.orange[50],
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.warning, color: Colors.orange[700]),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Incorrect. Was this actually correct?',
-                            style: TextStyle(
-                              color: Colors.orange[700],
-                              fontSize: 14,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () {
-                              setState(() {
-                                showOverride = false;
-                              });
-                            },
-                            child: const Text(
-                              'No',
-                              style: TextStyle(fontSize: 14),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _overrideAnswer,
-                            child: const Text(
-                              'Yes',
-                              style: TextStyle(fontSize: 14),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-          ],
+          ),
+          const SizedBox(height: 30),
           Card(
-            color: Colors.blue[50],
+            elevation: 1,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Icon(Icons.info, color: Colors.blue[700]),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Correct answers:',
+                  const Text(
+                    'Your Answer:',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _controller,
+                    enabled: !widget.showAnswer,
+                    decoration: InputDecoration(
+                      hintText: 'Type your answer here...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).primaryColor,
+                          width: 2,
+                        ),
+                      ),
+                      suffixIcon: isCorrect != null
+                          ? Icon(
+                              isCorrect! ? Icons.check_circle : Icons.cancel,
+                              color: isCorrect! ? Colors.green : Colors.red,
+                            )
+                          : null,
+                    ),
+                    style: const TextStyle(fontSize: 16),
+                    onSubmitted: widget.showAnswer
+                        ? null
+                        : (_) => _checkAnswer(),
+                  ),
+                  const SizedBox(height: 16),
+                  if (!widget.showAnswer)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _hasText ? _checkAnswer : null,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.all(16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Submit Answer',
                           style: TextStyle(
-                            color: Colors.blue[700],
+                            fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.question.acceptedAnswers.join(', '),
-                    style: TextStyle(
-                      color: Colors.blue[700],
-                      fontWeight: FontWeight.w500,
                     ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.question.explanation,
-                    style: TextStyle(color: Colors.blue[700]),
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                  ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: widget.onNext,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.all(16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          if (widget.showAnswer) ...[
+            if (isCorrect == false && showOverride) ...[
+              Card(
+                color: Colors.orange[50],
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.warning, color: Colors.orange[700]),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Incorrect. Was this actually correct?',
+                              style: TextStyle(
+                                color: Colors.orange[700],
+                                fontSize: 14,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  showOverride = false;
+                                });
+                              },
+                              child: const Text(
+                                'No',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _overrideAnswer,
+                              child: const Text(
+                                'Yes',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              child: const Text(
-                'Next Question',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ],
+            Card(
+              color: Colors.blue[50],
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info, color: Colors.blue[700]),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Correct answers:',
+                            style: TextStyle(
+                              color: Colors.blue[700],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.question.acceptedAnswers.join(', '),
+                      style: TextStyle(
+                        color: Colors.blue[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.question.explanation,
+                      style: TextStyle(color: Colors.blue[700]),
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: widget.onNext,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.all(16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Next Question',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
         ],
-      ],
       ),
     );
   }
@@ -882,7 +1039,7 @@ class MatchingWidget extends StatefulWidget {
   State<MatchingWidget> createState() => _MatchingWidgetState();
 }
 
-class _MatchingWidgetState extends State<MatchingWidget> 
+class _MatchingWidgetState extends State<MatchingWidget>
     with TickerProviderStateMixin {
   Map<String, String> userMatches = {};
   String? selectedKey;
@@ -890,10 +1047,10 @@ class _MatchingWidgetState extends State<MatchingWidget>
   Set<String> correctMatches = {};
   Set<String> incorrectMatches = {};
   bool isCompleted = false;
-  
+
   late List<String> shuffledKeys;
   late List<String> shuffledValues;
-  
+
   late AnimationController _successAnimationController;
   late AnimationController _errorAnimationController;
   late Animation<double> _successAnimation;
@@ -904,7 +1061,7 @@ class _MatchingWidgetState extends State<MatchingWidget>
     super.initState();
     shuffledKeys = widget.question.pairs.keys.toList()..shuffle();
     shuffledValues = widget.question.pairs.values.toList()..shuffle();
-    
+
     _successAnimationController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
@@ -914,10 +1071,16 @@ class _MatchingWidgetState extends State<MatchingWidget>
       vsync: this,
     );
     _successAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(parent: _successAnimationController, curve: Curves.easeOut),
+      CurvedAnimation(
+        parent: _successAnimationController,
+        curve: Curves.easeOut,
+      ),
     );
     _errorAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _errorAnimationController, curve: Curves.elasticOut),
+      CurvedAnimation(
+        parent: _errorAnimationController,
+        curve: Curves.elasticOut,
+      ),
     );
   }
 
@@ -943,7 +1106,7 @@ class _MatchingWidgetState extends State<MatchingWidget>
   void _tryMatch(String key, String value) {
     String correctValue = widget.question.pairs[key]!;
     bool isCorrect = correctValue == value;
-    
+
     if (isCorrect) {
       setState(() {
         userMatches[key] = value;
@@ -952,7 +1115,7 @@ class _MatchingWidgetState extends State<MatchingWidget>
         selectedKey = null;
         selectedValue = null;
       });
-      
+
       _successAnimationController.forward().then((_) {
         if (userMatches.length == widget.question.pairs.length) {
           setState(() {
@@ -968,7 +1131,7 @@ class _MatchingWidgetState extends State<MatchingWidget>
         selectedKey = null;
         selectedValue = null;
       });
-      
+
       _errorAnimationController.forward().then((_) {
         Future.delayed(const Duration(milliseconds: 500), () {
           setState(() {
@@ -983,7 +1146,7 @@ class _MatchingWidgetState extends State<MatchingWidget>
 
   void _onItemTap(String item, bool isKey) {
     if (correctMatches.contains(item)) return;
-    
+
     if (isKey) {
       if (selectedValue != null) {
         _tryMatch(item, selectedValue!);
@@ -1004,7 +1167,8 @@ class _MatchingWidgetState extends State<MatchingWidget>
       return Colors.green[100]!;
     } else if (incorrectMatches.contains(item)) {
       return Colors.red[100]!;
-    } else if ((isKey && selectedKey == item) || (!isKey && selectedValue == item)) {
+    } else if ((isKey && selectedKey == item) ||
+        (!isKey && selectedValue == item)) {
       return Colors.blue[100]!;
     }
     return Colors.grey[100]!;
@@ -1012,15 +1176,16 @@ class _MatchingWidgetState extends State<MatchingWidget>
 
   Widget _buildMatchingItem(String item, bool isKey) {
     bool isMatched = correctMatches.contains(item);
-    bool isSelected = (isKey && selectedKey == item) || (!isKey && selectedValue == item);
+    bool isSelected =
+        (isKey && selectedKey == item) || (!isKey && selectedValue == item);
     bool isIncorrect = incorrectMatches.contains(item);
-    
+
     return AnimatedBuilder(
       animation: isMatched ? _successAnimation : _errorAnimation,
       builder: (context, child) {
         double scale = isIncorrect ? (1.0 + _errorAnimation.value * 0.1) : 1.0;
         double opacity = isMatched ? _successAnimation.value : 1.0;
-        
+
         return Transform.scale(
           scale: scale,
           child: Opacity(
@@ -1038,19 +1203,25 @@ class _MatchingWidgetState extends State<MatchingWidget>
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      border: isSelected 
-                        ? Border.all(color: Colors.blue, width: 2)
-                        : null,
+                      border: isSelected
+                          ? Border.all(color: Colors.blue, width: 2)
+                          : null,
                     ),
                     child: Center(
                       child: Text(
                         item,
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                          color: isMatched ? Colors.green[800] : 
-                                 isIncorrect ? Colors.red[800] : 
-                                 isSelected ? Colors.blue[800] : Colors.black87,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                          color: isMatched
+                              ? Colors.green[800]
+                              : isIncorrect
+                              ? Colors.red[800]
+                              : isSelected
+                              ? Colors.blue[800]
+                              : Colors.black87,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -1061,9 +1232,9 @@ class _MatchingWidgetState extends State<MatchingWidget>
             ),
           ),
         );
-        },
-      );
-    }
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -3,14 +3,14 @@ library multicultproj.globals;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Language settings
+// Language settings - Updated to match backend database languages
 
 List<Map<String, String>> languages = [
   {'name': 'English', 'flag': '🇺🇸'},
   {'name': 'Vietnamese', 'flag': '🇻🇳'},
   {'name': 'Español', 'flag': '🇪🇸'},
-  {'name': 'Français', 'flag': '🇫🇷'},
-  {'name': '日本語', 'flag': '🇯🇵'},
+  {'name': 'Chinese', 'flag': '🇨🇳'},
+  {'name': 'Philippine/Tagalog', 'flag': '🇵🇭'},
 ];
 
 int _selectedIndex = 0;
@@ -100,37 +100,23 @@ Map<String, WordTranslations> wordDictionary = {
 class ChatMessage {
   final String text;
   final bool isUser;
-  
+
   ChatMessage({required this.text, required this.isUser});
 
-  Map<String, dynamic> toJson() => {
-    'text': text,
-    'isUser': isUser,
-  };
+  Map<String, dynamic> toJson() => {'text': text, 'isUser': isUser};
 
-  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
-    text: json['text'],
-    isUser: json['isUser'],
-  );
+  factory ChatMessage.fromJson(Map<String, dynamic> json) =>
+      ChatMessage(text: json['text'], isUser: json['isUser']);
 }
 
 List<ChatMessage> _chatMessages = [
-  ChatMessage(
-    text: '안녕하세요! 무엇을 도와드릴까요?',
-    isUser: false,
-  ),
-  ChatMessage(
-    text: '두통이 자주 있는데, 원인이 뭘까요?',
-    isUser: true,
-  ),
+  ChatMessage(text: '안녕하세요! 무엇을 도와드릴까요?', isUser: false),
+  ChatMessage(text: '두통이 자주 있는데, 원인이 뭘까요?', isUser: true),
   ChatMessage(
     text: '두통은 다양한 원인이 있을 수 있습니다. 최근에 스트레스를 많이 받으셨나요?',
     isUser: false,
   ),
-  ChatMessage(
-    text: '네, 요즘 공부 때문에 스트레스가 많아요.',
-    isUser: true,
-  ),
+  ChatMessage(text: '네, 요즘 공부 때문에 스트레스가 많아요.', isUser: true),
   ChatMessage(
     text: '스트레스가 두통의 원인일 수 있습니다. 충분한 휴식과 수분 섭취를 권장합니다.',
     isUser: false,
@@ -314,12 +300,7 @@ List<TypingQuestion> sampleTypingQuestions = [
 List<MatchingQuestion> sampleMatchingQuestions = [
   MatchingQuestion(
     title: "Match Korean words with English meanings",
-    pairs: {
-      "사과": "apple",
-      "물": "water",
-      "책": "book",
-      "고양이": "cat",
-    },
+    pairs: {"사과": "apple", "물": "water", "책": "book", "고양이": "cat"},
     explanation: "These are basic Korean vocabulary words.",
   ),
   MatchingQuestion(
@@ -334,22 +315,12 @@ List<MatchingQuestion> sampleMatchingQuestions = [
   ),
   MatchingQuestion(
     title: "Match Spanish words with English meanings",
-    pairs: {
-      "casa": "house",
-      "libro": "book",
-      "agua": "water",
-      "gato": "cat",
-    },
+    pairs: {"casa": "house", "libro": "book", "agua": "water", "gato": "cat"},
     explanation: "These are common Spanish vocabulary words.",
   ),
   MatchingQuestion(
     title: "Match French words with English meanings",
-    pairs: {
-      "chat": "cat",
-      "eau": "water",
-      "livre": "book",
-      "maison": "house",
-    },
+    pairs: {"chat": "cat", "eau": "water", "livre": "book", "maison": "house"},
     explanation: "These are basic French vocabulary words.",
   ),
   MatchingQuestion(
@@ -364,12 +335,7 @@ List<MatchingQuestion> sampleMatchingQuestions = [
   ),
   MatchingQuestion(
     title: "Match numbers with languages",
-    pairs: {
-      "One": "English",
-      "Uno": "Spanish",
-      "Un": "French",
-      "하나": "Korean",
-    },
+    pairs: {"One": "English", "Uno": "Spanish", "Un": "French", "하나": "Korean"},
     explanation: "The number 'one' in different languages.",
   ),
   MatchingQuestion(
@@ -384,12 +350,7 @@ List<MatchingQuestion> sampleMatchingQuestions = [
   ),
   MatchingQuestion(
     title: "Match Japanese characters with meanings",
-    pairs: {
-      "猫": "cat",
-      "犬": "dog",
-      "本": "book",
-      "水": "water",
-    },
+    pairs: {"猫": "cat", "犬": "dog", "本": "book", "水": "water"},
     explanation: "Basic Japanese kanji characters.",
   ),
   MatchingQuestion(
@@ -404,12 +365,7 @@ List<MatchingQuestion> sampleMatchingQuestions = [
   ),
   MatchingQuestion(
     title: "Match Vietnamese words with English meanings",
-    pairs: {
-      "mèo": "cat",
-      "nước": "water",
-      "sách": "book",
-      "nhà": "house",
-    },
+    pairs: {"mèo": "cat", "nước": "water", "sách": "book", "nhà": "house"},
     explanation: "Common Vietnamese vocabulary words.",
   ),
 ];
@@ -443,4 +399,3 @@ Future<void> initGlobals() async {
     _chatMessages = decoded.map((e) => ChatMessage.fromJson(e)).toList();
   }
 }
-
